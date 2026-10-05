@@ -3,6 +3,9 @@
 #   - the zip <slug>-<deployable>.<version>.zip (the published app, as App Service runs it) in the Octopus built-in feed
 #   - a release <version> of the Octopus project <slug>-<deployable>; its lifecycle deploys it to the first environment
 # No registry and no Azure credentials: App Service runs the zip on its built-in .NET runtime, and Octopus deploys it.
+# The deployable that owns the database (repository variable OWNS_DATABASE = true: the system's first app) also pushes
+# the build's database package and its acceptance tests, as release.yml does for a container app; a second app that
+# shares the database pushes neither (the package IDs are the owner's).
 # The version is the Build run's MAJOR.MINOR.run_number, the same number build.yml stamps into the packages.
 # Credentials: GitHub OIDC to Octopus only (environment "release").
 name: Release
@@ -106,6 +109,39 @@ jobs:
         uses: OctopusDeploy/push-package-action@v3
         with:
           packages: octopus-packages/${{ vars.SYSTEM_SLUG }}-${{ vars.DEPLOYABLE_NAME }}.${{ steps.version.outputs.version }}.zip
+          overwrite_mode: IgnoreIfExists
+
+      # The build's acceptance-test package carries Playwright's Node driver for five platforms (about 1 GB unpacked).
+      # Octopus runs the tests on Linux x64 only: keep that driver, drop the rest and the coverage collector.
+      - name: Trim the acceptance-test package for Octopus
+        if: vars.OWNS_DATABASE == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '${{ steps.version.outputs.version }}'
+          $source = Get-ChildItem -Path ./packages -Filter "ChurchBulletin.AcceptanceTests.$version.nupkg" | Select-Object -First 1
+          if (-not $source) { throw 'ChurchBulletin.AcceptanceTests package not found in the build artifact' }
+          $work = Join-Path $env:RUNNER_TEMP 'acceptance-tests'
+          Expand-Archive -LiteralPath $source.FullName -DestinationPath $work -Force
+          # -Force everywhere: on Linux, wildcards and Get-ChildItem skip dot-folders such as .playwright otherwise.
+          Get-ChildItem -Path $work -Recurse -Directory -Force | Where-Object {
+              ($_.Parent.Name -eq 'node' -and $_.Parent.Parent.Name -eq '.playwright' -and $_.Name -ne 'linux-x64') -or
+              ($_.Name -in @('CodeCoverage', 'BlazorDebugProxy') -and $_.Parent.FullName -eq $work)
+          } | Remove-Item -Recurse -Force
+          Remove-Item -Path (Join-Path $work '_rels'), (Join-Path $work 'package') -Recurse -Force -ErrorAction SilentlyContinue
+          Get-ChildItem -Path $work -Include '*.nuspec', '[Content_Types].xml' -Recurse -Force | Remove-Item -Force
+          if (-not (Test-Path -LiteralPath (Join-Path $work '.playwright' 'node' 'linux-x64'))) { throw 'The Playwright driver for linux-x64 is missing from the acceptance-test package' }
+          $target = "./octopus-packages/ChurchBulletin.AcceptanceTests.$version.zip"
+          Compress-Archive -Path (Get-ChildItem -LiteralPath $work -Force).FullName -DestinationPath $target -CompressionLevel Optimal
+          "Acceptance tests: $([Math]::Round($source.Length / 1MB)) MB -> $([Math]::Round((Get-Item $target).Length / 1MB)) MB" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Push the database and acceptance-test packages
+        if: vars.OWNS_DATABASE == 'true'
+        uses: OctopusDeploy/push-package-action@v3
+        with:
+          packages: |
+            packages/ChurchBulletin.Database.${{ steps.version.outputs.version }}.nupkg
+            octopus-packages/ChurchBulletin.AcceptanceTests.${{ steps.version.outputs.version }}.zip
           overwrite_mode: IgnoreIfExists
 
       - name: Create the release
