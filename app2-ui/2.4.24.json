@@ -1,0 +1,10 @@
+{
+  "deployable": "app2-ui",
+  "version": "2.4.24",
+  "generated": "2026-10-13T17:00:32Z",
+  "kind": "App Service package",
+  "process": "",
+  "entry": "",
+  "assemblies": [],
+  "truncated": false
+}
