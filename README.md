@@ -1,5 +1,20 @@
 # Work Order Management System
 
+## Retirement status
+
+Archive of this repository waits on [cmdemo1-system#511](https://github.com/clearmeasure-aisf-sample-apps/cmdemo1-system/issues/511) shipping in tdd, uat, and prod. That issue retires the cmdemo1 **app2-ui** App Service and removes it from the live system definition. This repository's archive issue is [cmdemo1-app2-ui#14](https://github.com/clearmeasure-aisf-sample-apps/cmdemo1-app2-ui/issues/14). Do not archive until #511 is merged and app2-ui is gone from tdd, uat, and prod.
+
+Checked 2026-11-05. #511 is still open, with no pull request. `system.json` on `main` of [cmdemo1-system](https://github.com/clearmeasure-aisf-sample-apps/cmdemo1-system) still lists deployable `app2-ui` (`hosting: appservice`, repository `cmdemo1-app2-ui`). The App Service sites are still up.
+
+Last application commit on `master`, and the commit those sites are running:
+
+- SHA: [`807ba87486c90200e14901935d97ee30e639ff3d`](https://github.com/clearmeasure-aisf-sample-apps/cmdemo1-app2-ui/commit/807ba87486c90200e14901935d97ee30e639ff3d) (Kit workflows, #13)
+- Deployed version: **2.4.28** in tdd, uat, and prod
+- `GET /_build` on `https://app-cmdemo1-tdd-app2-ui.azurewebsites.net`, `https://app-cmdemo1-uat-app2-ui.azurewebsites.net`, and `https://app-cmdemo1-prod-app2-ui.azurewebsites.net` each returned version `2.4.28`, that commit, built `2026-10-14T17:57:08Z` ([build 38609167039](https://github.com/clearmeasure-aisf-sample-apps/cmdemo1-app2-ui/actions/runs/38609167039))
+- Octopus project `cmdemo1-app2-ui` release `2.4.28` (package `cmdemo1-app2-ui.2.4.28.zip`) was created by [release run 38611016859](https://github.com/clearmeasure-aisf-sample-apps/cmdemo1-app2-ui/actions/runs/38611016859)
+
+A later commit that only updates this note does not change the deployed build.
+
 A work order management application built with .NET 10.0 implementing Onion Architecture. The system uses Blazor WebAssembly for the UI, Entity Framework Core for data access, MediatR for CQRS, and deploys to Azure Container Apps.
 
 This codebase serves as both a working application and a teaching reference for software architecture. The 51 architectural patterns cataloged below are all demonstrated in the source code.
